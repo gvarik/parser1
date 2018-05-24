@@ -9,7 +9,8 @@ TICK_EVERY = 60  # sec
 FILE_NAME = 'hpc_name.csv'
 URL = 'http://hpc.name'
 DAILY_URI = '/search.php?do=getdaily'
-
+LOGIN = 'gvaar'
+PASSWORD = 'lorden1995gvar'
 
 #
 
@@ -18,8 +19,21 @@ def get_html(url):
     return r.text
 
 
-def get_page_date(html):
-    pass
+def authorization():
+    session = requests.Session()
+    passwor = hashlib.md5(PASSWORD.encode('utf-8')) \
+        .hexdigest()
+    login_data = {
+        "vb_login_username": LOGIN,
+        "vb_login_password": PASSWORD,
+        "s": "",
+        "securitytoken": "guest",
+        "do": "login",
+        "vb_login_md5password": passwor,
+        "vb_login_md5password_utf": passwor
+    }
+    login = session.post("http://searchengines.guru/login.php?do=login", data=login_data)
+    first_page_ = session.get(URL+DAILY_URI, cookies=login.cookies)
 
 
 def read_csv():
