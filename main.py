@@ -32,8 +32,9 @@ def authorization():
         "vb_login_md5password": passwor,
         "vb_login_md5password_utf": passwor
     }
-    login = session.post("http://searchengines.guru/login.php?do=login", data=login_data)
-    first_page_ = session.get(URL+DAILY_URI, cookies=login.cookies)
+    login = session.post("https://hpc.name/login.php?do=login", data=login_data)
+    first_page_ = session.get(URL, cookies=login.cookies)
+    print('не авторизовался' if 'Вы ввели неправильное имя или пароль' in first_page_.text else u'авторизовался')
 
 
 def read_csv():
@@ -105,6 +106,7 @@ def get_page_data(html, topics):
 
 def main():
     while True:
+        
         topics = read_csv()
         get_page_data(get_html(URL + DAILY_URI), topics)
         time.sleep(TICK_EVERY)
