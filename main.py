@@ -1,61 +1,48 @@
 import time
 import requests
+import hashlib
 from bs4 import BeautifulSoup
 import csv
 
+#
+TICK_EVERY = 60  # sec
+FILE_NAME = 'hpc_name.csv'
+URL = 'http://hpc.name'
+DAILY_URI = '/search.php?do=getdaily'
+
+
+#
 
 def get_html(url):
     r = requests.get(url)
     return r.text
 
 
-def uptime(url):
-    get_page_data(get_html(url))
-    time.sleep(60)
-    check_new(get_html(url))
-    uptime(url)
-
-def check_new(html):
-    flag = 1
-    soup = BeautifulSoup(html, 'lxml')
-    table = soup.select("table#threadslist tr")
-    with open('hpc_name.csv', 'r') as file:
-        for tr in table:
-            td = tr.select('td div > a')
-            upd = tr.select('td div.smallfont')
-            if td:
-                title = td[0].get_text()
-                urlpost = td[0].get('href')
-            else:
-                continue
-            if upd:
-                author = upd[0].get_text().strip()
-                dataup = upd[1].get_text(' ', strip=True).split('от')
-                dataupd = dataup[0].strip()
-                lastauth = dataup[1].strip()
+def get_page_date(html):
+    pass
 
 
-            for line in file.readline():
-                if line[0] == title and line[3] == dataupd and line[4] == lastauth:
-                    flag = 0
-                    break
-            if flag == 1:
-                data = {'title': title,
-                        'urlpost': urlpost,
-                        'author': author,
-                        'dataupd': dataupd,
-                        'lastauth': lastauth}
+def read_csv():
+    topics = {}
+    try:
+        with open(FILE_NAME, 'r') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                # ','.join(row)
+                topics[row[0]] = hashlib.md5(",".join(row).encode('utf-8')).hexdigest()
 
-                write_csv(data)
-            elif flag == 0:
-                break
-
-
-
+    except OSError as e:
+        first = {'title': 'Title',  # Название темы
+                 'urlpost': 'Url',  # Ссылка на тему
+                 'author': 'Author',  # Дата последнего обновления топика
+                 'dataupd': 'Update',  # Автор последнего обновления топика
+                 'lastauth': 'Lastauth'}  # Автор топика
+        write_csv(first)
+    return topics
 
 
 def write_csv(data):
-    with open('hpc_name.csv', 'a') as f:
+    with open(FILE_NAME, 'a') as f:
         writer = csv.writer(f)
         writer.writerow((data['title'],
                          data['urlpost'],
@@ -64,16 +51,8 @@ def write_csv(data):
                          data['lastauth']))
 
 
-def get_page_data(html):    
-
-    first = {'title':  'Title',    #Название темы
-           'urlpost':  'Url',      #Ссылка на тему
-           'author':   'Author',   #Дата последнего обновления топика
-           'dataupd':  'Update',   #Автор последнего обновления топика
-           'lastauth': 'Lastauth'} #Автор топика
-    write_csv(first)
-
-    soup = BeautifulSoup(html, 'lxml')
+def get_page_data(html, topics):
+    soup = BeautifulSoup(html, 'html.parser')
     table = soup.select("table#threadslist tr")
 
     for tr in table:
@@ -90,22 +69,31 @@ def get_page_data(html):
             dataupd = dataup[0].strip()
             lastauth = dataup[1].strip()
 
+        if title in topics:
+            newHash = hashlib.md5(",".join([title, urlpost, author, dataupd, lastauth]).encode('utf-8')).hexdigest()
+            if topics[title] == newHash:
+                continue
+            else:
+                write_csv({'title': title,
+                           'urlpost': urlpost,
+                           'author': author,
+                           'dataupd': dataupd,
+                           'lastauth': lastauth}
+                          )
+        else:
+            write_csv({'title': title,
+                       'urlpost': urlpost,
+                       'author': author,
+                       'dataupd': dataupd,
+                       'lastauth': lastauth}
+                      )
 
-
-        data = {'title':    title,
-                'urlpost':  urlpost,
-                'author':   author,
-                'dataupd':  dataupd,
-                'lastauth': lastauth}
-
-        write_csv(data)
-        print(data)
 
 def main():
-
-    url = 'http://hpc.name/search.php?do=getdaily'
-    uptime(url)
-
+    while True:
+        topics = read_csv()
+        get_page_data(get_html(URL + DAILY_URI), topics)
+        time.sleep(TICK_EVERY)
 
 
 if __name__ == '__main__':
